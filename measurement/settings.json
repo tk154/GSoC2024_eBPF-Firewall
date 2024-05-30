@@ -1,0 +1,73 @@
+{
+    "ssh_name": "",
+
+    "devices": [
+        {
+            "name": "FritzBox_7360",
+            "ip": "10.22.1.2",
+            "source_netns": {
+                "name": "source"
+            },
+            "sink_netns": {
+                "name": "sink",
+                "ip": "10.22.20.1"
+            },
+            "disabled": 0
+        }
+    ],
+
+    "port": 55555,
+    "options": [
+        {
+            "name": "tcp",
+            "client": {
+                "--port": "55555"
+            },
+            "server": {},
+            "disabled": 0
+        },
+        {
+            "name": "udp",
+            "client": {
+                "--port": "55555",
+                "--udp": "",
+                "--bandwidth": "1G"
+            },
+            "server": {},
+            "disabled": 1
+        }
+    ],
+
+    "seconds_per_part": 60,
+    "seconds_before_parts": 10,
+    "parts": [
+        {
+            "name": "off",
+            "disabled": 0
+        },
+        {
+            "name": "on",
+            "disabled": 0
+        },
+        {
+            "name": "sw_flow",
+            "disabled": 0
+        },
+        {
+            "name": "hw_flow",
+            "disabled": 0
+        },
+        {
+            "name": "xdp256",
+            "disabled": 0
+        },
+        {
+            "name": "xdp32",
+            "disabled": 0
+        },
+        {
+            "name": "tc",
+            "disabled": 0
+        }
+    ]
+}

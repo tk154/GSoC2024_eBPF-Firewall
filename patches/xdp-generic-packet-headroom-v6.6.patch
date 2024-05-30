@@ -1,0 +1,99 @@
+diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h
+index 0896aaa91dd7..4111789b6f2d 100644
+--- a/include/linux/netdevice.h
++++ b/include/linux/netdevice.h
+@@ -2405,6 +2405,8 @@ struct net_device {
+ 	struct rtnl_hw_stats64	*offload_xstats_l3;
+ 
+ 	struct devlink_port	*devlink_port;
++
++	unsigned short xdp_generic_packet_headroom;
+ };
+ #define to_net_dev(d) container_of(d, struct net_device, dev)
+ 
+diff --git a/net/core/dev.c b/net/core/dev.c
+index 9f3f8930c691..93b6b8552709 100644
+--- a/net/core/dev.c
++++ b/net/core/dev.c
+@@ -4955,8 +4955,8 @@ static u32 netif_receive_generic_xdp(struct sk_buff *skb,
+ 	 * native XDP provides, thus we need to do it here as well.
+ 	 */
+ 	if (skb_cloned(skb) || skb_is_nonlinear(skb) ||
+-	    skb_headroom(skb) < XDP_PACKET_HEADROOM) {
+-		int hroom = XDP_PACKET_HEADROOM - skb_headroom(skb);
++	    skb_headroom(skb) < skb->dev->xdp_generic_packet_headroom) {
++		int hroom = skb->dev->xdp_generic_packet_headroom - skb_headroom(skb);
+ 		int troom = skb->tail + skb->data_len - skb->end;
+ 
+ 		/* In case we have to go down the path and also linearize,
+@@ -9096,6 +9096,17 @@ void dev_change_proto_down_reason(struct net_device *dev, unsigned long mask,
+ 	}
+ }
+ 
++int dev_set_xdp_generic_packet_headroom(struct net_device *dev,
++					unsigned short new_xdp_generic_packet_headroom)
++{
++	if (new_xdp_generic_packet_headroom > XDP_PACKET_HEADROOM)
++		return -EINVAL;
++
++	dev->xdp_generic_packet_headroom = new_xdp_generic_packet_headroom;
++	return 0;
++}
++EXPORT_SYMBOL(dev_set_xdp_generic_packet_headroom);
++
+ struct bpf_xdp_link {
+ 	struct bpf_link link;
+ 	struct net_device *dev; /* protected by rtnl_lock, no refcnt held */
+@@ -10742,6 +10753,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
+ 	dev->tso_max_segs = TSO_MAX_SEGS;
+ 	dev->upper_level = 1;
+ 	dev->lower_level = 1;
++	dev->xdp_generic_packet_headroom = XDP_PACKET_HEADROOM;
+ #ifdef CONFIG_LOCKDEP
+ 	dev->nested_level = 0;
+ 	INIT_LIST_HEAD(&dev->unlink_list);
+diff --git a/net/core/dev.h b/net/core/dev.h
+index fa2e9c5c4122..32c24225065e 100644
+--- a/net/core/dev.h
++++ b/net/core/dev.h
+@@ -82,6 +82,9 @@ int dev_change_proto_down(struct net_device *dev, bool proto_down);
+ void dev_change_proto_down_reason(struct net_device *dev, unsigned long mask,
+ 				  u32 value);
+ 
++int dev_set_xdp_generic_packet_headroom(struct net_device *dev,
++				unsigned short new_xdp_generic_packet_headroom);
++
+ typedef int (*bpf_op_t)(struct net_device *dev, struct netdev_bpf *bpf);
+ int dev_change_xdp_fd(struct net_device *dev, struct netlink_ext_ack *extack,
+ 		      int fd, int expected_fd, u32 flags);
+diff --git a/net/core/net-sysfs.c b/net/core/net-sysfs.c
+index fccaa5bac0ed..2f44ee7d6564 100644
+--- a/net/core/net-sysfs.c
++++ b/net/core/net-sysfs.c
+@@ -495,6 +495,18 @@ static ssize_t proto_down_store(struct device *dev,
+ }
+ NETDEVICE_SHOW_RW(proto_down, fmt_dec);
+ 
++static int change_xdp_generic_packet_headroom(struct net_device *dev, unsigned long new_xdp_generic_packet_headroom)
++{
++	return dev_set_xdp_generic_packet_headroom(dev, (unsigned short)new_xdp_generic_packet_headroom);
++}
++
++static ssize_t xdp_generic_packet_headroom_store(struct device *dev, struct device_attribute *attr,
++			 const char *buf, size_t len)
++{
++	return netdev_store(dev, attr, buf, len, change_xdp_generic_packet_headroom);
++}
++NETDEVICE_SHOW_RW(xdp_generic_packet_headroom, fmt_dec);
++
+ static ssize_t phys_port_id_show(struct device *dev,
+ 				 struct device_attribute *attr, char *buf)
+ {
+@@ -654,6 +666,7 @@ static struct attribute *net_class_attrs[] __ro_after_init = {
+ 	&dev_attr_carrier_up_count.attr,
+ 	&dev_attr_carrier_down_count.attr,
+ 	&dev_attr_threaded.attr,
++	&dev_attr_xdp_generic_packet_headroom.attr,
+ 	NULL,
+ };
+ ATTRIBUTE_GROUPS(net_class);
