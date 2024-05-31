@@ -4,6 +4,7 @@
     "devices": [
         {
             "name": "FritzBox_7360",
+            "endianness": "be",
             "ip": "10.22.1.2",
             "source_netns": {
                 "name": "source"
