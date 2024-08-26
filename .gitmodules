@@ -1,3 +1,4 @@
 [submodule "eBPF-Firewall"]
 	path = eBPF-Firewall
 	url = https://github.com/tk154/eBPF-Firewall.git
+	branch = main
